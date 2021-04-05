@@ -2,24 +2,35 @@
 
 ## LifeCycle
 
-1. beforeCreate
-2. created
-3. beforeMount
-4. mounted
-5. beforeUpdate
-6. updated
-7. activated
-8. deactivated
-9. beforeUnmount
-10. unmounted
-11. renderTracked
-12. renderTriggered
+   `LifeCycle methods`       `after lifeCycle step what vue to do`
+
+1. beforeCreate             → then Observe data & initialize events
+2. created                      → then Compile template (created後已經init有data和props的data了）
+3. beforeMount             → then Create vm.$el & update DOM
+4. mounted                    → then `Mounted`了， 如果有 Data Changed
+5. beforeUpdate            → Re-render virtual DOM & patch
+6. updated                      → `Mounted`
+
+    `Destroy LifeCycle`
+
+                                            → when vm.$destroy() is called
+
+1. beforeDestroy        → remove watchers, components and event listeners.
+
+                                       `Destroyed`
+
+ 2.  destroyed
 
 ## Reactivity system
 
 Vue用這個system，所以他會知道 哪個state被更改 然後只re-render那個component
 
-## Standardise Tool use in Vue
+1. Vue把所有的對象 都用 `Object.defineProperty` 轉換去 `gettter/setter`
+2. 基於內部機制 可以使 Vue 在属性被访问和修改时去触发相应的 getter 和 setter，以实现依赖追踪(dependency-track)和变更通知(change-notification
+3. 當在 data() { return { name: ''“ } } 時， Vue `initialise`就會`執行` `step2`了，所以我們才不能+新的 data 如果 initialise 時沒有的話， 那樣 它就不會reactivity了(不能紀錄在vue裡)
+4. 每个组件实例都有相应的 watcher 实例对象，它会在组件渲染的过程中把属性记录为`dependency`，之后当`dependency`项的 setter 被调用时，会通知 watcher 重新计算，从而致使它关联的组件得以更新。(trigger setter to notify the watcher)
+
+## Standardise Tool use in VueJs
 
 1. Vue Router 
 2. Vuex - state management 
@@ -75,6 +86,30 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 </template>
 ```
 
+### v-pre
+
+```html
+<div v-pre>{{renderAsStringNotParseToVue}}</div>
+```
+
+## data() 是 return Object
+
+```jsx
+export default {
+	data() {
+		return { 
+				items: [],
+				formValues: { name: '', age: ''}
+		 }	
+	},
+	// 也可以寫成
+	data: {
+		items: [],
+		formValues: { name: '', age: '' }
+	}
+}
+```
+
 ## Loop
 
 ```jsx
@@ -118,6 +153,37 @@ export default {
   }
 }
 </script>
+```
+
+## toRefs
+
+```jsx
+// composables folder | hook f
+import { reactive, toRefs } from 'vue';
+
+const usePosts = () => {
+	const state = reactive({
+		error: null,
+		posts: null,
+	});
+
+	const load = async () => {
+		try {
+			let data = await fetch("https://');
+			if(!data.ok) return throw Error("No data available");
+		
+			state.posts = await data.json();
+		} catch (err) {
+			state.error = err.message;
+		}
+	}
+
+	return {
+		// 因為 這個state 不是在 setup function裡面 所以沒有vue的 reactivity system
+		...toRefs(state), 
+		load,
+	}
+}
 ```
 
 ## slot (children)
@@ -283,6 +349,15 @@ export default {
 		}
   }
 }
+
+// in setup() way
+export default {
+	setup() {
+		const isLoading = computed(() => !list.data.length);
+			
+		return { isLoading } 
+	}
+}
 ```
 
 ## Provide/Inject
@@ -339,12 +414,6 @@ export default {
 	name: 'Component_F',
 	inject: ['username'],
 }
-```
-
-## v-pre
-
-```html
-<div v-pre>{{renderAsStringNotParseToVue}}</div>
 ```
 
 Setup
