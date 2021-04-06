@@ -1,5 +1,3 @@
-# VueJs
-
 ## LifeCycle
 
    `LifeCycle methods`       `after lifeCycle step what vue to do`
@@ -139,7 +137,7 @@ const app = new Vuew({
 
 ```html
 <template>
-	<input type="text" refs="somename" />
+	<input type="text" ref="somename" />
 	<button @click="handleClick">Cick me</button>
 </template>
 
@@ -153,6 +151,20 @@ export default {
   }
 }
 </script>
+```
+
+```jsx
+import {ref, onMounted} from 'vue';
+// 在 Composition API裡 需要 ref value 不然 他不會 reactivity in vue system
+export default {
+	setup() {
+		const somename = ref(null);
+
+		onMounted() {
+			somename.value.focus();
+		}
+	}
+}
 ```
 
 ## toRefs
@@ -179,7 +191,17 @@ const usePosts = () => {
 	}
 
 	return {
-		// 因為 這個state 不是在 setup function裡面 所以沒有vue的 reactivity system
+		/*
+			 在 Template 直接 {{ posts }} 就行了 不需要 state.posts， 因為 toRefs的關係
+			 如果是 return ｛ state } 
+			 template 需要 state.posts那樣就沒有問題
+			 但是每個都需要 state. 很麻煩
+			 return { firstName: state.firstName, }
+			 那樣的話 更改 posts 會 update 不到 view 因為 vue不知道 
+			 state裡面的單獨的value被換了
+			 所以需要 return toRefs(state) 
+			 Template 上面一樣 不需要寫 state. 直接 posts
+		*/
 		...toRefs(state), 
 		load,
 	}
@@ -225,6 +247,9 @@ export default {
 ## Composition API
 
 ```jsx
+// Composition API 這些 method 都要自己+的 
+import {computed, ref} from 'vue';
+
 export default {
 	setup() {
 		// data
@@ -237,6 +262,53 @@ export default {
 
 1.  大型project比較好mantain
 2. 它的code 可以 share用
+
+## Props passing from both component
+
+```jsx
+// parent
+<template>
+	<input type="text" v-model="firstName" />
+	<input type="text" v-model="lastName" />
+	<ChildComponent :firstName :lastName @AnyName="callFn" />
+</template>
+
+export default {
+	name: 'ParentComponent',
+	components: { ChildComponent },
+	setup() {
+		const firstName = ref('');
+		const lastName = ref('');
+
+		function callFn(value) {
+			console.log(`value passing from child ${value}`)
+		}
+
+		return { firstName, lastName }
+	},
+}
+
+// child
+<template>
+	<button @click="sendToParent">Call Heroes</button>
+</template>
+
+export default {
+	name: 'ChildComponent',
+	setup(props, context) {
+		const fullName = computed(() => `${props.firstName} ${props.lastName}`)
+		
+		// use regular function, the "this" is bind in this instance
+		function sendToParent() {
+			context.emit("AnyName", fullName.value);
+		}
+
+	},
+	emits: ["AnyName"], // same as Options Api when use in Compisition API
+	// Options API Way
+	props: ['firstName', 'lastName']
+}
+```
 
 ## onErrorCaptured
 
@@ -360,6 +432,108 @@ export default {
 }
 ```
 
+## Watcher (options API)
+
+```jsx
+// when to use
+// property changed to a favorable value then to do something
+// Call An API in response to change in application data
+// have to apply transition
+
+export default {
+	data() {
+		return {
+			volume: 0,
+			movie: "",
+			movieInfo: {
+				name: '',
+				actor: '',
+			},
+			movieList: ["laoyeche", "wilker"]
+		}
+	},
+	watch: {
+		/*
+			watchVariableName(defaultNewValue, defaultOldValue)
+			第一第二參數 都是default的 
+			上面不需要pass， 只要dependency不一樣了 那他就是自動在newValue
+		*/
+		volume(newValue, oldValue) { // 這個volume是指向 data裡的 volume key來的
+			if(newValue > oldValye && newValue === 16) {
+				console.log("high volume will hurt your hearing")
+			}
+		},
+		movie: { // 注意 這個是 obj, 因我 obj 我們可以放另外一個叫做 immediate的key
+			handler(newValue) {
+				console.log('handler name is provided from vue')
+			},
+			immediate: true, // 這個是 mounted 馬上call handler function
+		}
+		movieInfo: {
+			handler(newValue) {
+				console.log('Watcher is not watch nested item, unless deep key is true');
+			},
+			deep: true,
+		},
+		movieList: {
+			handler(newValue) {
+				console.log('Array also same, watcher cannot watch it unless deep key is true');
+			},
+			deep: true, // 可以不用 true， 只要 concat array就行了，它是新array， 
+			//如果用 push， 那就是 modified 那樣就需要把 deep： true
+		}
+	}
+}
+
+<template>
+	<button @click="volume++">++++</button>
+	<button @click="volume--">--</button>
+	<input type="text" v-model="movie" />
+</template>
+```
+
+## Watcher (reactive)
+
+```jsx
+export default {
+	name: "componentNme",
+	setup() {
+		const state = reactive({
+			fName: '',
+			lName: '',
+			options: { // array or object 都要 deep true
+				heroName: '',
+			},
+		});
+	
+		//  這屆 watch lName or fName
+		watch(() => {
+			// 我們需要 return state 去copy 多一分 object 
+			// 不然 oldValue 會和 newValue 是一樣的
+			return { ...state } // 這個 return 會影響到下面的 newValue value
+		}, (newValue, oldValue) => {
+			console.log(newValue.fName)
+		});
+
+  	// watch 單獨一個
+	  watch(() => state.fName, (newValue, oldValue) => {
+	  	console.log("if watch state independent value need callback the state value")
+  		console.log("Doesn't need newValue.fName since cb state.fName", newValue)
+  	})
+
+		// watch reactive object or array (deep: true)
+		// lodash _ > _.cloneDeep(state.options)
+		watch(() => JSON.parse(JSON.stringify(state.options)), (newValue, oldValue) => {
+			console.log('need to deepClone the state if not old with same with newValue')
+		})
+  
+		return  {
+			...toRefs(state),
+		}
+	}
+}
+```
+
 ## Provide/Inject
 
 ```jsx
@@ -413,6 +587,77 @@ export default {
 export default {
 	name: 'Component_F',
 	inject: ['username'],
+}
+```
+
+## Where to call API in lifeCycle
+
+```jsx
+export default {
+	data() {
+		return {
+			errorMsg = "",
+			posts: []
+		}
+	},
+	created() {
+		// 在這裡 就能 access reactive data and event了
+		this.getPostList()
+	},
+	methods: {
+		getPostList() {
+			try {
+				axios("https://")
+			} catch (err) {
+				this.errorMsg = err;
+			}
+		}
+	}
+}
+```
+
+## Mixins
+
+```jsx
+/*
+	Click 和 Hover 用一樣的邏輯 
+	可以用Mixins 
+	- 如果 裡面 有自己 data() 然後 return 是 counter.js 的 variable
+		那樣 那個 component 會 overwrite掉
+*/
+// ClickCounter.vue
+// Note: 缺點！ 我們不知道 incrementCount and count 從哪裡來 如果 app做大
+<template>
+	<button @click="incrementCount">Click {{ count }}</button>
+</temaplte>
+
+import CounterMixin from 'path';
+
+export default {
+	name: 'ClickCounter',
+	mixins: [CounterMixin]
+}
+
+// HoverCounter.vue 
+import CounterMixin from 'path';
+
+export default {
+	name: 'HoverCounter',
+	mixins: [CounterMixin]
+}
+
+// counter.js
+export default {
+	data() {
+		return {
+			count: 0,
+		}
+	},
+	methods: {
+		incrementCount() {
+			this.count + 1;
+		}
+	}
 }
 ```
 
