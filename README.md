@@ -1,7 +1,11 @@
 [LifeCycle](#LifeCycle)
+
 [Reactivity system](#Reactivity system)
+
 [Standardise Tool use in VueJs](#Standardise Tool use in VueJs)
+
 [v-(directive)](#v-(directive))
+
 [LifeCycle](#LifeCycle)
 [LifeCycle](#LifeCycle)
 [LifeCycle](#LifeCycle)
