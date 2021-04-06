@@ -1,3 +1,5 @@
+Take me to [v-bind](#v-bind)
+
 ## LifeCycle
 
    `LifeCycle methods`       `after lifeCycle step what vue to do`
