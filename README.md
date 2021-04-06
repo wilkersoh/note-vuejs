@@ -4,7 +4,7 @@
 
 [Standardise Tool use in VueJs](#Standardise-Tool-use-in-VueJs)
 
-[v-(directive)](#v-(directive))
+[v-directive](#v-directive)
 
 [LifeCycle](#LifeCycle)
 [LifeCycle](#LifeCycle)
@@ -55,7 +55,7 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 3. Vue test utils
 4. Vue devtools - debuging 
 
-## v-(directive)
+## v-directive
 
 1. v-model
 2. v-bind:href="url" - `:href`
