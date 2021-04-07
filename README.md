@@ -1,3 +1,7 @@
+# VueJs
+
+Tags: Learning, VueJs
+
 ## LifeCycle
 
    `LifeCycle methods`       `after lifeCycle step what vue to do`
@@ -34,6 +38,7 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 2. Vuex - state management 
 3. Vue test utils
 4. Vue devtools - debuging 
+5. vee-validate & yup
 
 ## v-directive
 
@@ -68,7 +73,9 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 1. allow you to produce some dynamic value by typing some JS expression that in most cases depends on the data from data model - so think about v-bind as directive that you should use when you want deal with some dynamic things
 2. v-bind:value is called one way binding that means: you can change input value by changing bound data but you can't change bound data by changing input value through the element(更改data 只會更改當前的data 他不會影響到 最原始的data, 大多數是 `bind`在 `html attribute, custom props`)
 
-### @click.[modifier]
+### @click.[modifier] (v-on:)
+
+> v-on directive is how you run JavaScript in response to DOM events. If you want to run some code when the user clicks a button, you should use v-on
 
 ```html
 <template>
@@ -83,6 +90,14 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 	</div>
 </template>
 ```
+
+### @change (trigger when user leaves the input)
+
+```jsx
+<input @change="callthisValidateFn" v-model="value" />
+```
+
+### @input (onChange)
 
 ### v-pre
 
@@ -131,6 +146,32 @@ const app = new Vuew({
 		</li>
 	</ol>
 </div>
+```
+
+## $attrs
+
+```jsx
+// parent
+/*
+	By default it will pass down to the first div
+	child component 也不需要 set props， 它會自動pass
+	但是 如果你不要去第一個div呢？
+	需要用 attrs
+*/
+<template>
+	<Child :color="bgColor" id="12" /> 
+</template>
+
+// Child
+<template>
+	<div>
+		<div v-bind=“$attrs“ :class="$attrs.bgColor"></div>
+	</div>
+</template>
+
+export default {
+	inheritAttrs: false,
+}
 ```
 
 ## ref
@@ -302,11 +343,48 @@ export default {
 		function sendToParent() {
 			context.emit("AnyName", fullName.value);
 		}
-
 	},
 	emits: ["AnyName"], // same as Options Api when use in Compisition API
 	// Options API Way
 	props: ['firstName', 'lastName']
+}
+```
+
+## this object in methods
+
+### $emit
+
+```jsx
+// just a note, we can call emit in function too
+export default {
+	name: 'Child',
+	methods: {
+		someFunctionName() {
+			// logic below
+			const result;
+			this.$emit('AnyName', result) // we call $emit from this object
+		}
+	}
+}
+// parent
+<template>
+	<Child @AnyName="handleFn" />
+</template>
+```
+
+### $route
+
+```jsx
+export default {
+	name: 'Note',
+	methods: {
+		showSomeFn() {
+			// We-Only-Can-Push-Params-In-Object
+			this.$route.push({ name: 'RouteName', params: { id: 2 } })
+			// we can get value from params
+			const { id } = this.$route.params
+		}
+	}
 }
 ```
 
@@ -660,6 +738,29 @@ export default {
 	}
 }
 ```
+
+## Listen route change
+
+### beforeRouteLeave(to, from, next)
+
+```jsx
+export default {
+	// if it is false, then it will pop up a confirm
+	name: '',
+	beforeRouteLeave(to, from, next) {
+		if(false) {
+			next(true);
+		} else {
+			const response = confirm("are you want to leave?");
+			next(response)
+		}
+	}
+}
+```
+
+### beforeRouteEnter
+
+## 
 
 Setup
 
