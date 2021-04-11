@@ -28,7 +28,7 @@ Tags: Learning, VueJs
 Vue用這個system，所以他會知道 哪個state被更改 然後只re-render那個component
 
 1. Vue把所有的對象 都用 `Object.defineProperty` 轉換去 `gettter/setter`
-2. 基於內部機制 可以使 Vue 在属性被访问和修改时去触发相应的 getter 和 setter，以实现依赖追踪(dependency-track)和变更通知(change-notification
+2. 基於內部機制 可以使 Vue 在属性被访问和修改时去触发相应的 getter 和 setter，以实现dependency追踪(dependency-track)和变更通知(change-notification
 3. 當在 data() { return { name: ''“ } } 時， Vue `initialise`就會`執行` `step2`了，所以我們才不能+新的 data 如果 initialise 時沒有的話， 那樣 它就不會reactivity了(不能紀錄在vue裡)
 4. 每个组件实例都有相应的 watcher 实例对象，它会在组件渲染的过程中把属性记录为`dependency`，之后当`dependency`项的 setter 被调用时，会通知 watcher 重新计算，从而致使它关联的组件得以更新。(trigger setter to notify the watcher)
 
@@ -39,6 +39,24 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 3. Vue test utils
 4. Vue devtools - debuging 
 5. vee-validate & yup
+
+## SFC (Single File Component)
+
+```html
+<template></template>
+
+<script></script>
+
+<style></style>
+```
+
+## directive hook
+
+1. **bind** – called once when the directive is bound to an element
+2. **inserted** – when the bound element is inserted into its parent node
+3. **update** – when the element updates (but any children haven’t yet)
+4. **componentUpdated** – after the children have also updated
+5. **unbind** – called once when the directive is unbound from an element
 
 ## v-directive
 
@@ -59,7 +77,7 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 1. mainly for input and form binding, so use it when you dealing with various input types
 2. v-model is for two way bindings means: if you change input value, the bound data will be changed and vice versa. (如果你更改data 最上面的origin data也會被更改)
 
-### v-model.[modifier] - trim,number,lazy
+### v-model.[modifier] - trim,number,lazy, capitalize
 
 ```html
 <input type="text" v-model.trim="formValues.name" \>
@@ -98,6 +116,12 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 ```
 
 ### @input (onChange)
+
+## @keydown.enter
+
+```jsx
+<input @keydown.enter="clickEnterCallFn" />
+```
 
 ### v-pre
 
@@ -208,7 +232,23 @@ export default {
 }
 ```
 
-## toRefs
+## Reactive
+
+```jsx
+import { reactive, toRef } from 'vue';
+
+/**
+	不能接受 Primitive in reactive
+	1.Only accept Object {} then it will reactivity 
+*/
+export default {
+	const obj = reactive({ a: 'value', b: 'cool' });
+	const aRef = toRef(obj, "a"); // Destructure it
+	
+}
+```
+
+## toRefs and reactive
 
 ```jsx
 // composables folder | hook f
@@ -289,10 +329,17 @@ export default {
 
 ```jsx
 // Composition API 這些 method 都要自己+的 
-import {computed, ref} from 'vue';
+import {computed, ref, reactive} from 'vue';
 
 export default {
-	setup() {
+	props: ['propsName'],
+	setup(props) {
+		/*
+			1. 需要用ref 去 bind data
+			2. 不能用 this 在 setup裡
+		*/
+		const { a, b } = toRefs(props) // destructure 
+
 		// data
 		// mounted
 		// methods
@@ -345,7 +392,7 @@ export default {
 		}
 	},
 	emits: ["AnyName"], // same as Options Api when use in Compisition API
-	// Options API Way
+	// Options API Way | composition APi need it too
 	props: ['firstName', 'lastName']
 }
 ```
@@ -386,6 +433,29 @@ export default {
 		}
 	}
 }
+```
+
+## <router-view> & routes
+
+```jsx
+const routes = createRouter({
+	history: createWebHistory(),
+	routes: [
+		{
+			path: '/',
+			name: '',
+			components: '',
+			meta: {
+				someKeyName: 'value', // we can access this from router-link tag
+			}
+		}
+	]
+})
+
+// route.meta can retrieve the value you set in routes
+<router-view v=slot={ Component, route }>
+	<component :is="Component" /> // dynamic component
+</router-view>
 ```
 
 ## onErrorCaptured
@@ -445,7 +515,8 @@ import Spinner from "@/components/Spinner.vue";
 
 const ChatWindow = defineAsyncComponent({
   loader: () => import("@/components/ChatWindow"),
-  loadingComponent: Spinner
+  loadingComponent: Spinner,
+  delay: 3000
 });
 
 export default {
@@ -506,6 +577,27 @@ export default {
 		const isLoading = computed(() => !list.data.length);
 			
 		return { isLoading } 
+	}
+}
+```
+
+```jsx
+export default {
+	setup() {
+		const state = reactive({
+			pokemons: [],
+			filteredPokemon: computed(() => updatePokemon),
+			text: '',
+		});
+
+		function updatePokemon() {
+			
+			return state.pokemons.filter(pokemon => pokemon.name.includes(state.text))
+		}
+
+		return {
+			...toRefs(state)
+    }
 	}
 }
 ```
@@ -760,7 +852,125 @@ export default {
 
 ### beforeRouteEnter
 
-## 
+## Vue delimiters
+
+```jsx
+// Default: ["{{", "}}"] 所以 我們的 value 都 是 {{ username }}
+// 可以換掉它
+
+// version 2 
+new Vue({
+  delimiters: ['${', '}']
+})
+// version 3
+Vue.createApp({
+  delimiters: ['${', '}']
+})
+```
+
+## Transition Component
+
+```css
+/* Default */
+.enter-from { opacity: 0 };
+.enter-to { opacity: 1 }; /* default 的值 可以不用放 */
+.enter-active { transition: opacity 2s ease-in };
+
+.leave-from {  };
+.leave-to {  };
+.leave-active {  };
+
+/* add name */
+.someName.enter-from {};
+
+.someName.leave-from {};
+```
+
+```jsx
+<transition name="someName">
+	<div>I will be transition</div>
+</transition>
+```
+
+```jsx
+<transition-group tag="ul" name="list"></transition-group>
+/* first mounted */
+<transition-group appear>
+	<div></div>
+	<div></div>
+</transition-group>
+/* custom appear class */
+<transition-group 
+	appear
+	appear-class="custom-appear-class"
+  appear-to-class="custom-appear-to-class"
+  appear-active-class="custom-appear-active-class"
+></transition-group>
+```
+
+```jsx
+/*
+	mode: by default 他們是一起進行的
+	(out-in | in-out)
+	如果下面的 沒有 放 mode，當我拿掉 最後 一個 list item，它會顯示 v-else的
+	但是 當我 拿掉 我也有 list-leave-from 的 transition 他也會執行
+	然後 v-else 也會同時執行
+	所以 放 out-in 就是說 我先執行 leave的 再做in的 
+*/
+<transition name="switch" mode="out-in">
+  <div v-if="todos.length">
+    <transition-group tag="ul" name="list" appear>
+				/* some list */
+     </transition-group>
+  </div>
+  <div v-else>No todo list!</div>
+</transition>
+```
+
+```jsx
+/* Transition javascript hook */
+EnterHook: （life cycle > before-enter 先）
+before-enter, enter, after-enter
+
+LeavesHook: （life cycle）
+before-leave, leave, after-leave
+
+<transiton
+	@before-enter="beforeEnter"
+	@enter="enter"
+>
+</transiton>
+
+<transiton-group
+	appear
+	tag="ul"
+	@before-enter="beforeEnter"
+	@enter="enter"
+>
+	<li v-for="(list, index) in lists" :data-index="index"></li>
+</transiton-group>
+
+<script>
+	import gsap from "gsap";
+	setup() {
+	 const beforeEnter = () => { /* set initial value */ }
+
+	 const enter = (el, done) => {
+		// if just step el.style.opacity, it wouldn't transition effect
+		gsap.to(el, {
+			opacity: 1,
+			y: 0, // translateY 來的
+			duration: 3, // 3 sec
+			onCompleted: done, // after duration finish call done if not 
+							           // afterEnter will trigger 
+			delay: el.dataset.index * 0.2
+		});
+	 }
+		
+
+	}
+</script>
+```
 
 Setup
 
