@@ -42,7 +42,6 @@
   * [Vue delimiters](#vue-delimiters)
   * [Transition Component](#transition-component)
 
-
 ## LifeCycle
 
    `LifeCycle methods`       `after lifeCycle step what vue to do`
@@ -156,9 +155,16 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 <input @change="callthisValidateFn" v-model="value" />
 ```
 
-### @input (onChange)
+### v-on:input - @input (onChange)
 
-## @keydown.enter
+```jsx
+<input
+   :value="something"
+   @input="something = $event.target.value"
+>
+```
+
+### @keydown.enter
 
 ```jsx
 <input @keydown.enter="clickEnterCallFn" />
@@ -170,7 +176,7 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 <div v-pre>{{renderAsStringNotParseToVue}}</div>
 ```
 
-## data() 是 return Object
+## data() return Object
 
 ```jsx
 export default {
@@ -355,6 +361,89 @@ const usePosts = () => {
 
 ```
 
+## v-slot
+
+```jsx
+// app.vue
+<template>
+  <current-user v-slot="{user}">
+    {{ user.firstName }}
+  </current-user>
+</template>
+
+// v-slot has alias also
+v-slot:header="data" > #header="data"
+we can specifc #header instead of v-slot:header
+```
+
+```jsx
+// my-modal.vue children
+<template>
+<div>
+	<div>
+		<slot name="header"></slot>
+		<button>Close</button>
+	</div>
+	<div>
+		<slot name="body"></slot>
+	</div>
+</div>
+</template>
+
+// other .vue parent
+<template>
+	<my-modal>
+		<template #header><h2>This will be put to the local</h2></template>
+		<template v-slot:body><h2># is a alias from v-slot</h2></template>
+	</my-modal>
+</template>
+```
+
+Pass value to parent from `<slot>`
+
+```jsx
+<!--BookCard.vue--> children
+<template>
+	....
+	<slot name="preview" :previewSlug="previewSlug"></slot>
+</template>
+
+<!--BookList.vue--> parent
+<template>
+	<book-card>
+		...
+		<template v-slot:preview="slotProps">
+			<a :href="slotProps.previewSlug" />
+		</template>
+	</book-card>
+</template>
+
+```
+
+Pass data to children from parent
+
+```jsx
+<!--BookList.vue--> parent
+<template>
+	... loop
+	<book-card :book-data="book">
+		...
+		<template v-slot:preview="slotProps">
+			<a :href="slotProps.previewSlug" />
+		</template>
+	</book-card>
+</template>
+
+<!--BookCard.vue--> parent
+export default {
+	props: {
+		bookData: {
+      // we can use camelCase instead of kebab even top is assign kebab
+    }
+	}
+}
+```
+
 ## Options API
 
 ```jsx
@@ -458,6 +547,28 @@ export default {
 <template>
 	<Child @AnyName="handleFn" />
 </template>
+```
+
+```jsx
+// child - component name (ChildComponent)
+<template>
+	<div @click="$emit('clickedChild', $event)" :data-index="value"></div>
+</template>
+
+export default {
+	emits: ["clickedChild"],
+}
+
+// parent
+<template>
+	<ChildComponent @clickedChild="clickedChild" />
+</template>
+
+export default {
+	const clickedChild = (e) => {
+		console.log(e)
+	}
+}
 ```
 
 ### $route
@@ -643,6 +754,10 @@ export default {
 }
 ```
 
+```jsx
+
+```
+
 ## Watcher (options API)
 
 ```jsx
@@ -732,6 +847,11 @@ export default {
   		console.log("Doesn't need newValue.fName since cb state.fName", newValue)
   	})
 
+		// watch 全部 state
+		watch(state, newValue => {
+			//....
+		})
+
 		// watch reactive object or array (deep: true)
 		// lodash _ > _.cloneDeep(state.options)
 		watch(() => JSON.parse(JSON.stringify(state.options)), (newValue, oldValue) => {
@@ -742,10 +862,87 @@ export default {
 			...toRefs(state),
 		}
 	}
+}sl
+```
+
+you pass an array as a first argument (to watch multiple sources), that array can contain mix of functions and naked refs. See example bellow.
+
+為什麼需要 直接換 新的 才會 trigger watch？
+
+Vue cannot detect property addition or deletion. Since Vue performs the getter/setter conversion process during instance initialization.  Vue does not allow dynamically adding new root-level reactive properties to an already created instance. That is NOT reactive if you `change directly,` so watch cannot detected.
+
+```jsx
+const app = Vue.createApp({  
+  setup() {
+    const state = Vue.reactive({
+      postPerPage: 10,
+      currentPage: 1,
+    });
+
+    const posts = Vue.ref([]);
+    
+    const normalRef = Vue.ref(0)
+    
+    const watchCounter = Vue.ref(0)
+
+    Vue.watch([
+        //() => posts.value, // <-- this will not trigger watch callback on array push (only on array replace). Can be fixed by deep watch (uncomment last argument of watch)
+        //posts, // <-- same result as above
+        () => [ ...posts.value],         
+        // () => state, // similar to array, this does not trigger on property change
+        () => ({ ...state }), 
+        normalRef
+      ],
+      (newValues, prevValues) => {
+        watchCounter.value++
+        console.log(`prev (${watchCounter.value}):`, prevValues);
+        console.log(`new (${watchCounter.value}):`, newValues);
+      },
+      // { deep: true }
+    )
+    
+    return {
+      state,
+      posts,
+      normalRef,
+      watchCounter
+    }
+  },
+  mounted() {
+    const interval = 1000
+    setTimeout( () => this.state.currentPage = 2, interval)
+    setTimeout( () => this.posts.push({ a: 1 }), interval*2)    
+    setTimeout( () => this.normalRef = 10, interval*3)    
+  }
+})
+
+app.mount("#app")
+```
+
+```jsx
+export default {
+	setup() {
+		const counter = reactive({count: 1});
+		watch(() => counter.count, () => {})
+		
+		const count = ref(0);
+		watch(count, () => {})
+
+		const count2 = ref(1);
+		watch([count, count2], () => {});
+
+		watch([
+			count, 
+			() => ({ ...counter })
+		], () => {})
+
+	}
 }
 ```
 
 ## Provide/Inject
+
+Vue re-renders only the affected descendent components and not all the components along the component hierarchy
 
 ```jsx
 /*
@@ -801,6 +998,44 @@ export default {
 }
 ```
 
+```jsx
+// Composition Api (parent)
+export default {
+	const settings = ref({
+		catsApiKey: 'e8d29058-baa0-4fbd-b5c2-3fa67b13b0d8',
+    catsSearchApi: 'https://api.thecatapi.com/v1/images/search',
+	});
+	provide('settings', computed(() => settings.value)); // (name, value)
+	const changeSearchApi = (searchApi) => {
+        settings.value = {
+            ...settings.value,
+            catsSearchApi: searchApi
+        };
+    };
+
+	return { changeSearchApi }
+}
+
+// children
+export default {
+	const settings = inject('settings', {}); // (theNameOfPropertyInject, optionalOfDefaultValue) 
+
+	const loadNextImage = async () => {
+    try {
+        const { catsApiKey, catsSearchApi } = settings.value;
+        
+        axios.defaults.headers.common['x-api-key'] = catsApiKey;
+        
+        let response = await axios.get(catsSearchApi, {params: { limit: 1, size: "full" } });
+        const { url } = response.data[0];
+        imageUrl.value = url;
+	    } catch (err) {
+        console.log(err)
+    }
+  };
+}
+```
+
 ## Where to call API in lifeCycle
 
 ```jsx
@@ -823,6 +1058,18 @@ export default {
 				this.errorMsg = err;
 			}
 		}
+	}
+}
+
+export default {
+	setup() {
+		onMounted(async () => {
+			loading.value(true);
+			data.value = await fetch("url");
+			loading.value(false)
+		})
+
+		return { loading, data }
 	}
 }
 ```
@@ -892,6 +1139,15 @@ export default {
 ```
 
 ### beforeRouteEnter
+
+### beforeEach (scroll to top)
+
+```jsx
+router.beforeEach((to, from, next) => {
+  window.scrollTo(0, 0)
+  // ...
+})
+```
 
 ## Vue delimiters
 
@@ -1012,6 +1268,23 @@ before-leave, leave, after-leave
 	}
 </script>
 ```
+
+## nextTick
+
+它是 你的data全部updated去DOM後，它才callback你要的東西
+
+Imagine that you need to perform some action when a component is mounted. BUT! not only the component. You also need to wait until all its children are mounted and available in the DOM. Damn! Our mounted hook doesn’t guarantee that the whole component tree renders
+
+```jsx
+mounted() {
+  this.$nextTick(() => {
+    // The whole view is rendered, so I can safely access or query
+    // the DOM. ¯\_(ツ)_/¯
+  })
+}
+```
+
+## forceRerender
 
 Setup
 
