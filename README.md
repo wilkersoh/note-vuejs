@@ -1,4 +1,3 @@
-##### Table of Contents 
   * [LifeCycle](#lifecycle)
   * [Reactivity system](#reactivity-system)
   * [Standardise Tool use in VueJs](#standardise-tool-use-in-vuejs)
@@ -10,16 +9,17 @@
     + [v-bind](#v-bind)
     + [@click.[modifier] (v-on:)](#-click-modifier---v-on--)
     + [@change (trigger when user leaves the input)](#-change--trigger-when-user-leaves-the-input-)
-    + [@input (onChange)](#-input--onchange-)
-  * [@keydown.enter](#-keydownenter)
+    + [v-on:input - @input (onChange)](#v-on-input----input--onchange-)
+    + [@keydown.enter](#-keydownenter)
     + [v-pre](#v-pre)
-  * [data() 是 return Object](#data-----return-object)
+  * [data() return Object](#data---return-object)
   * [Loop](#loop)
   * [$attrs](#-attrs)
   * [ref](#ref)
   * [Reactive](#reactive)
   * [toRefs and reactive](#torefs-and-reactive)
   * [slot (children)](#slot--children-)
+  * [v-slot](#v-slot)
   * [Options API](#options-api)
   * [Composition API](#composition-api)
   * [Props passing from both component](#props-passing-from-both-component)
@@ -39,8 +39,27 @@
   * [Listen route change](#listen-route-change)
     + [beforeRouteLeave(to, from, next)](#beforerouteleave-to--from--next-)
     + [beforeRouteEnter](#beforerouteenter)
+    + [beforeEach (scroll to top)](#beforeeach--scroll-to-top-)
   * [Vue delimiters](#vue-delimiters)
   * [Transition Component](#transition-component)
+  * [nextTick](#nexttick)
+  * [forceRerender](#forcererender)
+  * [markRaw](#markraw)
+  * [Vee-validate (Composition API)](#vee-validate--composition-api-)
+    + [schema](#schema)
+    + [Best practice for yup](#best-practice-for-yup)
+    + [With Reactive](#with-reactive)
+    + [Note](#note)
+    + [handle multiple input errors (useForm)](#handle-multiple-input-errors--useform-)
+    + [error show input name](#error-show-input-name)
+    + [dirty](#dirty)
+    + [initialValues && initialErrors](#initialvalues----initialerrors)
+    + [useForm handle submit](#useform-handle-submit)
+    + [non-AJAX submition](#non-ajax-submition)
+    + [Submit as  nested object](#submit-as--nested-object)
+  * [Field ｜ Form | :validation-schema](#field---form----validation-schema)
+    + [Field](#field)
+    + [Form & validaton](#form---validaton)
 
 ## LifeCycle
 
@@ -1285,6 +1304,446 @@ mounted() {
 ```
 
 ## forceRerender
+
+## markRaw
+
+在 v2裡 如果 直接 yup.object({}), vue 會把整個 yup當作 reactive object
+
+可以用 `markRaw`  去避免這個行為
+
+```jsx
+import { markRaw } from 'vue';
+
+{
+  data() {
+    // Non-reactive because it was explicitly defined with `markRaw`
+    const schema = markRaw(yup.object({
+      email: yup.string().required().email(),
+      password: yup.string().required().min(8),
+    }));
+
+    return {
+      schema,
+    };
+  },
+}
+```
+
+## Vee-validate (Composition API)
+
+```jsx
+<template>
+  <div>
+    <input v-model="value" type="text" />
+    <span>{{ errorMessage }}</span>
+  </div>
+</template>
+```
+
+`useField` 可以自己直接 set rules
+
+```jsx
+import { useField } from 'vee-validate';
+const isRequired = (value) => { return value === true || "some error msg"}
+const { errorMessage, value } = useField('fieldName', isRequired);
+```
+
+use `yup`
+
+```jsx
+import { useField } from 'vee-validate';
+import * as yup from 'yup';
+const { errorMessage, value } = useField('fieldName', yup.string().required().min(8));
+
+```
+
+### schema
+
+用 `useForm` 去做 validate的 schema
+
+```jsx
+const simpleSchema = {
+  email(value) {
+    // validate email value and return messages...
+  },
+  name(value) {
+    // validate name value and return messages...
+  },
+};
+
+useForm({
+  validationSchema: simpleSchema,
+});
+
+const { value: email, errorMessage: emailError } = useField('email');
+
+<template>
+	<input name="email" v-model="email" />
+</template>
+```
+
+### Best practice for yup
+
+Should import what you need to control the bundler's tree-shaking
+
+```jsx
+import { object, string } as yup from 'yup';
+
+const schema = object({
+  email: string().email(),
+  // ...
+});
+```
+
+用 `yup` 去做 schema
+
+```jsx
+import { useForm, useField } from 'vee-validate';
+import * as yup from 'yup';
+
+const schema = yup.object({
+  email: yup.string().required().email(),
+  name: yup.string().required(),
+  password: yup.string().required().min(8),
+});
+
+const { handleSubmit, errors } = useForm({
+  validationSchema: schema,
+});
+
+const { value: email, errorMessage: emailError } = useField('email');
+```
+
+### With Reactive
+
+```jsx
+import { computed, ref } from 'vue';
+import { useForm, useField } from 'vee-validate';
+import * as yup from 'yup';
+
+const min = ref(0);
+const schema = computed(() => {
+  return yup.object({
+    password: yup.string().min(min.value), // 要指向 value
+  });
+});
+
+// Create a form context with the validation schema
+useForm({
+  validationSchema: schema,
+});
+
+const { value: password, errorMessage: passwordError } = useField('password');
+```
+
+handleChnage from useField
+
+```jsx
+const { errorMessage, value, handleChange } = useField('fieldName', isRequired);
+
+/* Lister every input */
+<template>
+	<input @input="handleChange" :value="value" type="text" />
+</template>
+
+/* Lister after leave the input */
+	<input @change="handleChange" :value="value" type="text" />
+```
+
+### Note
+
+我們有 lazy mode 和 aggressive mode
+
+1. lazy mode - 是 離開後 才 開始 validate
+2. aggressive mode - 是 listen 每個 input change
+
+```jsx
+/* 那做一個 當user 離開input後 validate 出現 error
+	user 再進去更改 會把 lazy mode 轉換去 aggressive mode
+	當 input 從 invalid 到valid 的了 又 轉回去 lazy mode
+*/
+<template>
+  <div>
+    <input v-on="validationListeners" :value="value" type="text" />
+    <span>{{ errorMessage }}</span>
+  </div>
+</template>
+
+import { computed } from 'vue';
+import { useField } from 'vee-validate';
+
+export default {
+  setup() {
+    function isRequired(value) {
+      // ...
+    }
+
+    const { errorMessage, value, handleChange, handleInput } = useField('fieldName', isRequired, {
+      validateOnValueUpdate: false,
+    });
+
+    const validationListeners = computed(() => {
+      // If the field is valid or have not been validated yet
+      // lazy
+      if (!errorMessage.value) {
+        return {
+          blur: handleChange,
+          change: handleChange,
+          input: handleInput,
+        };
+      }
+
+      // Aggressive
+      return {
+        blur: handleChange,
+        change: handleChange,
+        input: handleChange, // only switched this
+      };
+    });
+
+    return {
+      errorMessage,
+      value,
+      validationListeners,
+    };
+  },
+};
+</script>
+```
+
+### handle multiple input errors (useForm)
+
+```jsx
+const schema = yup.object({
+    email: yup.string().required().email(),
+    password: yup.string().required().min(8),
+});
+
+// Create a form context with the validation schema
+const { errors } = useForm({
+  validationSchema: schema,
+});
+
+const { value: email } = useField('email');
+const { value: password } = useField('password');
+```
+
+### error show input name
+
+```jsx
+// default
+error show: The down_p is required
+
+// Custom with yup
+const schema = Yup.object({
+  email_addr: Yup.string().email().required().label('Email Address'),
+  acc_pazzword: Yup.string().min(5).required().label('Your Password'),
+});
+
+```
+
+### dirty
+
+`useField` or `useForm` 
+
+```jsx
+<template>
+  <input v-model="value" type="text" />
+
+  <button :disabled="!meta.dirty">Submit</button>
+</template>
+
+import { useField, useForm } from 'vee-validate';
+
+// Provide initial value to make `meta.dirty` accurate
+const { value, meta } = useField('fieldName', undefined, {
+  initialValue: '',
+});
+
+```
+
+注意： 下面有`<form>` tag, 
+
+### initialValues && initialErrors
+
+```jsx
+/**
+	避免一直從重複寫 initialValue
+可以使用 useForm
+**/
+<template>
+  <form @submit="submit">
+    <input v-model="value" type="text" />
+
+    <button :disabled="!meta.dirty">Submit</button>
+  </form>
+</template>
+
+const { meta, values } = useForm({
+  initialValues: {
+    email: '',
+  },
+	initialErrors: {
+		email: 'This email is already taken'
+	},
+});
+
+// create some fields with useField
+const { value } = useField('email');
+
+function submit() {
+  // send stuff to api
+}
+```
+
+### useForm handle submit
+
+`handleSubmit` , `isSubmitting`, `resetForm`, `setFieldError`, `setErrors`
+
+```jsx
+<template>
+	<form @submit="onSubmit">
+			/*  form fields */
+		<button :disabled="isSubmitting" type="submit"></button>
+	</form>
+</template>
+
+const { handleSubmit, isSubmitting, resetForm } = useForm();
+
+const onSubmit = handleSubmit(values => {
+	// send to api
+
+	resetForm();
+});
+
+return {
+  onSubmit,
+};
+```
+
+### non-AJAX submition
+
+You normally would use this if you are not building a single-page application.
+
+```jsx
+<template>
+  <form action="/users" method="post" @submit="submitForm">
+    <!-- some fields -->
+  </form>
+</template>
+
+const { submitForm } = useForm();
+
+return {
+  submitForm,
+};
+```
+
+### Submit as  nested object
+
+```jsx
+<template>
+  <form @submit="onSubmit">
+    <input v-model="twitter" type="url" />
+    <input v-model="github" type="url" />
+
+    <button>Submit</button>
+  </form>
+</template>
+
+export default {
+  setup() {
+    const { handleSubmit } = useForm();
+    const onSubmit = handleSubmit(values => {
+      alert(JSON.stringify(values, null, 2));
+/*
+			{
+			  "links": {
+			    "twitter": "https://twitter.com/logaretm",
+			    "github": "https://github.com/logaretm"
+			  }
+			}
+*/
+    });
+
+    const { value: twitter } = useField('links.twitter');
+    const { value: github } = useField('links.github');
+		/*
+			Nested Array
+	    const { value: twitter } = useField('links[0]');
+	    const { value: github } = useField('links[1]');
+		*/
+    return {
+      twitter,
+      github,
+      onSubmit,
+    };
+  },
+};
+```
+
+## Field ｜ Form | :validation-schema
+
+### Field
+
+你也可以用 `Field` 那樣就能寫 一些custom的rules了
+
+```jsx
+<Field name="password" type="password" rules="required|min:8" />
+
+/* 不必在 setup裡 */
+import { defineRule } from 'vee-validate';
+
+defineRule('minLength', (value, [limit]) => { // limit是 min:8 是 8來的
+  // The field is empty so it should pass
+  if (!value || !value.length) {
+    return true;
+  }
+
+  if (value.length < limit) {
+    return `This field must be at least ${limit} characters`;
+  }
+
+  return true;
+});
+```
+
+### Form & validaton
+
+```jsx
+<template>
+  <Form @submit="submit" :validation-schema="schema" v-slot="{ errors }">
+    <Field name="email" />
+    <span>{{ errors.email }}</span>
+
+    <Field name="password" type="password" />
+    <span>{{ errors.password }}</span>
+
+    <button>Submit</button>
+  </Form>
+</template>
+
+<script>
+import { Form, Field } from 'vee-validate';
+
+export default {
+  components: {
+    Form,
+    Field,
+  },
+  data() {
+    const schema = {
+      email: 'required|email',
+      password: 'required|min:8',
+    };
+
+    return {
+      schema,
+    };
+  },
+};
+</script>
+```
 
 Setup
 
