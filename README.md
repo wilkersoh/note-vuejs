@@ -109,6 +109,7 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 3. Vue test utils
 4. Vue devtools - debuging 
 5. vee-validate & yup
+6. vue-multiselect && Vue-autosuggest 
 
 ## SFC (Single File Component)
 
@@ -165,11 +166,42 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 ### custom modifier
 
 ```jsx
+// parent
 // add capitalize
-<input type="text" v-model.="value" />
+<SalutationInput v-model:salutation.capitalize="value" />
 // vue3 will inject a new props for custom modifier, eg: below
 v-model:salutation // salutationModifiers { Object }
 v-model:name // nameModifiers { Object }
+
+// SalutationInput.vue
+<script>
+	props: {
+		salutationModifiers: {
+			type: Object,
+			default: () => ({})
+		}
+	},
+	setup() {
+		const updateSalutation = (event) => {
+      let val = event.target.value;
+      if(props.salutationModifiers.capitalize) {
+        val = val.toUpperCase();
+      }
+
+      emit("update:salutation", val)
+    }
+	}
+</script>
+
+<template>
+	<select @change="updateSalutation" name="salutation">
+		<option
+			loopDataItem
+			:value="item"
+			:selected="salutation === item"
+		>...</option>
+	</select>
+</template>
 ```
 
 ### v-bind
