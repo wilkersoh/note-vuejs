@@ -5,8 +5,12 @@
   * [directive hook](#directive-hook)
   * [v-directive](#v-directive)
     + [v-model](#v-model)
-    + [v-model.[modifier] - trim,number,lazy, capitalize](#v-model-modifier----trim-number-lazy--capitalize)
+    + [v-model.[modifier] - trim, number, lazy, capitalize](#v-model-modifier----trim--number--lazy--capitalize)
+    + [custom modifier](#custom-modifier)
     + [v-bind](#v-bind)
+    + [v-bind without argument](#v-bind-without-argument)
+    + [v-on without argument](#v-on-without-argument)
+    + [complex exmaple (v-bind & v-on)](#complex-exmaple--v-bind---v-on-)
     + [@click.[modifier] (v-on:)](#-click-modifier---v-on--)
     + [@change (trigger when user leaves the input)](#-change--trigger-when-user-leaves-the-input-)
     + [v-on:input - @input (onChange)](#v-on-input----input--onchange-)
@@ -14,7 +18,7 @@
     + [v-pre](#v-pre)
   * [data() return Object](#data---return-object)
   * [Loop](#loop)
-  * [$attrs](#-attrs)
+  * [$attrs && inheritAttrs](#-attrs----inheritattrs)
   * [ref](#ref)
   * [Reactive](#reactive)
   * [toRefs and reactive](#torefs-and-reactive)
@@ -60,6 +64,13 @@
   * [Field ｜ Form | :validation-schema](#field---form----validation-schema)
     + [Field](#field)
     + [Form & validaton](#form---validaton)
+    + [Change modalValue default name](#change-modalvalue-default-name)
+  * [Component Design Patterns](#component-design-patterns)
+    + [Props custom validation](#props-custom-validation)
+    + [scoped slots (pass value to parent from child)](#scoped-slots--pass-value-to-parent-from-child-)
+  * [render function with component](#render-function-with-component)
+  * [Functional Components](#functional-components)
+
 
 ## LifeCycle
 
@@ -136,19 +147,96 @@ Vue用這個system，所以他會知道 哪個state被更改 然後只re-render�
 1. mainly for input and form binding, so use it when you dealing with various input types
 2. v-model is for two way bindings means: if you change input value, the bound data will be changed and vice versa. (如果你更改data 最上面的origin data也會被更改)
 
-### v-model.[modifier] - trim,number,lazy, capitalize
+### v-model.[modifier] - trim, number, lazy, capitalize
 
 ```html
 <input type="text" v-model.trim="formValues.name" \>
 
-// 沒有馬上update 需要按出去input才update
+// 沒有馬上update 需要按出去input才update 順便 拿掉 空格
 <input type="text" v-model.trim.lazy="formValues.name" \>
+
+<input type="text" v-model.lazy="value" />
+
+// 轉換 去 number
+<input type="text" v-model.number="value" />
+
+```
+
+### custom modifier
+
+```jsx
+// add capitalize
+<input type="text" v-model.="value" />
+// vue3 will inject a new props for custom modifier, eg: below
+v-model:salutation // salutationModifiers { Object }
+v-model:name // nameModifiers { Object }
 ```
 
 ### v-bind
 
 1. allow you to produce some dynamic value by typing some JS expression that in most cases depends on the data from data model - so think about v-bind as directive that you should use when you want deal with some dynamic things
 2. v-bind:value is called one way binding that means: you can change input value by changing bound data but you can't change bound data by changing input value through the element(更改data 只會更改當前的data 他不會影響到 最原始的data, 大多數是 `bind`在 `html attribute, custom props`)
+
+### v-bind without argument
+
+```jsx
+export default {
+  return {
+		imageAttrs: {
+			src: 'better',
+			alt: 'code'
+		}
+	}
+}
+
+<img v-bind:src="imageAttrs.src" v-bind:alt="imageAttrs.alt" />
+
+// clean way
+<img v-bind="{ src:imageAttrs.src, alt:imageAttrs.alt }" />
+
+// better way
+<img v-bind="imageAttrs" />
+```
+
+### v-on without argument
+
+```jsx
+export default {
+	const openGallery = () => { ... }
+	const showTooltip = () => { ... }
+	return {
+		imageEvents: { openGallery, showTooltip } // 只用在 例子3
+	}
+}
+
+<img v-on:click="openGallery" v-on:mouseover="showTooltip" />
+
+<img v-on="{ click: openGallery, on:mouseover: showTooltip}" />
+
+// 例子3
+<img v-on="imageEvents" />
+```
+
+### complex exmaple (v-bind & v-on)
+
+```jsx
+<template>
+	<Component
+		v-for="content in apoResponse"
+		:key="content"
+		:is="content.type"
+		v-bind="feedItem(content).attrs"
+		v-on="feedItem(content).events"
+	/>
+</template>
+// 重點 不是 Component :is 什麼的 是 v-bind 和 v-on 
+return {
+	feedItem(item) {
+		if(item.type === 'xx') { return { attrs: xxx, events: xxxx }}
+		else if(item.type === 'yy') { return { attrs: yy, events: yyyy }}
+	}
+}
+```
 
 ### @click.[modifier] (v-on:)
 
@@ -238,7 +326,7 @@ const app = new Vuew({
 </div>
 ```
 
-## $attrs
+## $attrs && inheritAttrs
 
 ```jsx
 // parent
@@ -260,7 +348,7 @@ const app = new Vuew({
 </template>
 
 export default {
-	inheritAttrs: false,
+	inheritAttrs: false, // 只會 pass 給 attrs 的 div 而不是root和 div 都+
 }
 ```
 
@@ -358,7 +446,7 @@ const usePosts = () => {
 ## slot (children)
 
 ```html
-// parent
+// parent, v-slot 只能在 template tag
 <Modal>
 	<template v-slot:nameSlot>
 		<p>這個也是child 但是它會根據 vue的directive去放他的位子</p>
@@ -378,6 +466,14 @@ const usePosts = () => {
 	</div>
 </template>
 
+```
+
+```jsx
+// parent
+// string
+<template v:slot:header></template>
+// js variable
+<template v:slot:[slotName]></template>
 ```
 
 ## v-slot
@@ -543,7 +639,7 @@ export default {
 	emits: ["AnyName"], // same as Options Api when use in Compisition API
 	// Options API Way | composition APi need it too
 	props: ['firstName', 'lastName']
-}
+	}
 ```
 
 ## this object in methods
@@ -699,6 +795,8 @@ export default {
 ```
 
 ## Computed()
+
+`computed` return 回來的 variable 如果 還要需要 再`另外一個` computed 用到 需要 variableName.value。 computed  會轉換去 `ref` 
 
 ```jsx
 // 當 UI re-render 就會call 到 getTotal，而computed 如果dependency 沒更改 他不會re-render它
@@ -1185,6 +1283,8 @@ Vue.createApp({
 ```
 
 ## Transition Component
+
+我們通常不需要 在 `enter-to`,  `leave-from` 寫 css 因為 大多數 我們都是 animation 去 default css的 比如 opacity 1 or scale 1。
 
 ```css
 /* Default */
@@ -1742,6 +1842,198 @@ export default {
     };
   },
 };
+</script>
+```
+
+Vue3 add typescript to existing project
+
+```bash
+$ vue add typescript
+use class-styled - N
+Use Babal... - Y
+Convert all .js to .ts - Y
+Allow .js files to be compiled - N
+...recomanded of app - Y
+```
+
+v-model in Vue2 and Vue3
+
+```tsx
+// v2
+<template>
+	<input
+		:value="value"
+		@input="$emit(
+			'input',
+			$event.target.value
+		)"
+	/>
+</template>
+
+export default {
+  props: {
+		value: {
+			type: [String, Number],
+			default: '',
+		}
+	}
+}
+```
+
+```jsx
+// v3
+<template>
+	<input
+		:value="modalValue"
+		@input="$emit(
+			'update:modelValue',
+			$event.target.value
+		)"
+	/>
+</template>
+
+export default {
+  props: {
+		modelValue: {
+			type: [String, Number],
+			default: '',
+		}
+	}
+}
+
+```
+
+### Change modalValue default name
+
+```jsx
+// v3 it can change the modalValue
+<template>
+	<BaseInput 
+		v-model:modalValue="someValue"
+	/>
+</template>
+
+export default {
+  props: {
+		modelValue: {
+			type: [String, Number],
+			default: '',
+		}
+	}
+
+```
+
+## Component Design Patterns
+
+### Props custom validation
+
+```jsx
+export default {
+	props: {
+		image: { 
+			/*
+				檢查 
+				1. 只能收到 png and jpg
+				2. path 是 images/
+			*/
+			type: String,
+			default: '/images/placeholder.png',
+			validator: propValue => {
+				const hasImagesDirectory = propValue.indexOf('/images/') > -1;
+				const isPNG = propValue.endsWith('.png');
+				const isJPG = propValue.endsWith('.jpg');
+				const hasValidateExtension = isPNG || isJPG;
+				return hasImagesDirectory && hasValidateExtension;
+			}
+		}
+	}
+}
+```
+
+### scoped slots (pass value to parent from child)
+
+```jsx
+<slot name="header" :logo="logoImage" />
+
+// parent
+<template v-slot:header="slotProps">
+	{{ slotProps.logo }}
+</template>
+
+// clean code
+<template v-slot:header="{ logo }">
+	{{ logo }}
+</template>
+```
+
+Example
+
+```jsx
+// Book.vue children 
+<template>
+	<div>
+		<slot name="title"
+				:bookTitle="bookTitle"
+		/>
+	</div>
+</template>
+
+export default {
+	setup() {
+		return {
+			bookTitle: 'hi'
+		}
+	}
+}
+
+// Library.vue parent
+<template>
+	<Book>
+		<template v-slot:title="slotPorps">
+			<h1>{{ slotPorps.bookTitle }}</h1>
+		</template>
+	</Book>
+</template>
+```
+
+## render function with component
+
+```jsx
+<div id="app"></div>
+
+<script>
+	const GreetComponent = {
+		template: '<h2>HEllo</h2>'
+	}
+	let app = new Vue({
+		el: '#app',
+		render(h) {
+			return h(GreetComponent)
+		}
+	})
+</script>
+```
+
+## Functional Components
+
+1. Can't have their own data, computed properties, watchers, lifecycle method or methods
+2. Can't have a template, unless it's precompiled from a single-file component 
+3. Can be passed things, like props, events, attributes and slots.
+4. Return a Vnode or an array of VNodes from render function
+
+FC 會增加速度  
+
+[https://medium.com/js-dojo/vue-js-functional-components-what-why-and-when-439cfaa08713#:~:text=What is a functional component,itself through the this keyword](https://medium.com/js-dojo/vue-js-functional-components-what-why-and-when-439cfaa08713#:~:text=What%20is%20a%20functional%20component,itself%20through%20the%20this%20keyword) 
+
+```jsx
+<script>
+export default {
+	functional: true,
+	props: { SomeProps: String },
+	render(h, ctx) {
+		// functional must be true and use render function
+	}
+}	
 </script>
 ```
 
